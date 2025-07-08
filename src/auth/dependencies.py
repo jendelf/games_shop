@@ -1,32 +1,21 @@
 from typing import Annotated, Any
 import jwt
-from settings import settings
-from .schemas import UserInDB, TokenData
+from src.settings import settings
+from .schemas import TokenData
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from .models import User
-from .service import verify_password
+from src.database import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
+from .service import get_user
 
-#TODO УБРАТЬ СЛОВАРЬ ПОТОМ ЗАМЕНИТЬ НА РЕАЛЬНУЮ БД
-fake_users_db = {
-    "johndoe@example.com": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$examplehashedpassword",
-        "disabled": False,
-    }
-}
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
-def get_user(user_db, email: str): # retrieves a user from DB by email
-    if email in user_db:
-        user_dict = user_db[email]
-        return UserInDB(**user_dict)
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+                           session: AsyncSession = Depends(get_session)):
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -40,7 +29,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         token_data = TokenData(email = email)
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user(fake_users_db, email=token_data.email) #TODO ЗАМЕНИТЬ fake_users_db на настоящую БД
+    user = await get_user(session, email=token_data.email)
     if user is None:
         raise credentials_exception
     return user
@@ -52,10 +41,6 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-def authenticate_user(fake_users_db, email: str, password: str): #TODO ЗАМЕНИТЬ fake_users_db на настоящую БД
-    user = get_user(fake_users_db, email) 
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password): 
-        return False
-    return user 
+DB_session_dep = Depends(get_session)
+current_user_dep = Depends(get_current_user)
+active_user_dep = Depends(get_current_active_user)
