@@ -16,8 +16,8 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 engine = create_async_engine("sqlite+aiosqlite:///./online_shop.db", echo=True)
 
-new_session = async_sessionmaker(engine, expire_on_commit=False)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 async def get_session():
-    async with new_session() as session:
+    async with async_session_maker() as session:
         yield session

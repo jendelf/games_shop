@@ -21,7 +21,8 @@ RefreshTokenNotFound = HTTPException(
     detail="Refresh token not found",
 )
 
-UserAlreadyExists = lambda email: HTTPException(
-    status_code=status.HTTP_400_BAD_REQUEST,
-    detail=f"User with '{email}' already exists",
-)
+def UserAlreadyExists(email: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"User with '{email}' already exists",
+    )
