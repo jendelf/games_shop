@@ -2,20 +2,27 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from src.settings import settings
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from .schemas import Token, UserIn
-from .constants import ACCESS_TOKEN_EXPIRE_MINUTES
+from .schemas import UserIn, TokenPair
+from .constants import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from src.shop.models import Game
-from .models import User
+from .models import User, RefreshToken
+from .dependencies import DB_session_dep
+from .exceptions import (
+    InvalidCredentials,
+    RefreshTokenExpired,
+    InvalidRefreshToken,
+    RefreshTokenNotFound,
+    UserAlreadyExists
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 async def get_user(session: AsyncSession, email: str): # retrieves a user from DB by email
-    select_user = select(User).where (User.email==email) 
-    result = await session.execute(select_user)
+    query = select(User).where (User.email==email) 
+    result = await session.execute(query)
     user = result.scalar_one_or_none()
     return user
 
@@ -29,32 +36,20 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
 
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm,
-    session: AsyncSession
-) -> Token:
-    user = await authenticate_user(form_data.username, form_data.password, session)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    return Token(access_token=access_token, token_type="bearer")
+def create_refresh_token(data: dict):
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = data.copy()
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
 
 async def get_users_games(user: User, session: AsyncSession):
     query = select(Game).where(Game.owner_id == user.id)
     result = await session.execute(query)
     return result.scalars().all()
 
-async def authenticate_user(email: str, password: str, session: AsyncSession): 
+async def authenticate_user(email: str, password: str, session: AsyncSession):
     user = await get_user(session, email) 
     if not user:
         return False
@@ -66,7 +61,7 @@ async def user_registration(user_data: UserIn, session: AsyncSession) -> User:
     query = select(User).where(User.email == user_data.email)
     result = await session.execute(query)
     if result.scalar_one_or_none():
-        raise ValueError(f"User with '{user_data.email}' already exists")
+        raise UserAlreadyExists
     hashed_password = get_password_hash(user_data.password)
     new_user = User(username = user_data.username,
                     hashed_password = hashed_password,
@@ -78,6 +73,48 @@ async def user_registration(user_data: UserIn, session: AsyncSession) -> User:
     await session.commit()
     await session.refresh(new_user)
     return new_user
-#TODO написать функцию log out
-async def logout():
-    pass
+
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm,
+    session: AsyncSession
+) -> TokenPair:
+    user = await authenticate_user(form_data.username, form_data.password, session)
+    if not user:
+        raise InvalidCredentials
+
+    access_token = create_access_token({"sub": user.email})
+    refresh_token = create_refresh_token({"sub": user.email})
+
+    db_token = RefreshToken(token=refresh_token, user_id=user.id)
+    session.add(db_token)
+    await session.commit()
+
+    return TokenPair(access_token=access_token, refresh_token=refresh_token)
+
+async def user_logout(refresh_token: str, session: AsyncSession = DB_session_dep):
+    stmt = select(RefreshToken).where(RefreshToken.token == refresh_token)
+    result = await session.execute(stmt)
+    token_obj = result.scalar_one_or_none()
+    if token_obj:
+        await session.delete(token_obj)
+        await session.commit()
+    return {"detail": "Logged out"}
+
+async def refresh_access_token(refresh_token: str, session: AsyncSession = DB_session_dep):
+    try:
+        payload = jwt.decode(refresh_token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+    except jwt.ExpiredSignatureError:
+        raise RefreshTokenExpired
+    except jwt.InvalidTokenError:
+        raise InvalidRefreshToken
+
+    stmt = select(RefreshToken).where(RefreshToken.token == refresh_token)
+    result = await session.execute(stmt)
+    token_obj = result.scalar_one_or_none()
+
+    if not token_obj:
+        raise RefreshTokenNotFound
+
+    new_access_token = create_access_token({"sub": email})
+    return {"access_token": new_access_token, "token_type": "bearer"}

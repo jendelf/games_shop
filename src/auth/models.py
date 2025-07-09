@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean
+from sqlalchemy import String, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import Base
 from typing import TYPE_CHECKING
@@ -16,3 +16,8 @@ class User(Base):
 
 
 #TODO создать роли
+
+class RefreshToken(Base):
+    token: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+

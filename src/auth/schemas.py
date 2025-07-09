@@ -25,13 +25,13 @@ class UserIn(UserBase):
 class UserOut(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class Token(BaseModel): 
+class TokenPair(BaseModel):
     access_token: str
-    token_type: str
+    refresh_token: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 class TokenData(BaseModel):
     email: EmailStr | None = None
