@@ -2,6 +2,7 @@ from pydantic import BaseModel,ConfigDict, EmailStr, field_validator, Field
 import re
 from .models import Role
 class UserBase(BaseModel):
+    id: int
     username: str = Field(..., max_length=100, description="Username is maximum 100 letters")
     email: EmailStr
     disabled: bool = Field(default=False, description="Is account blocked or not")

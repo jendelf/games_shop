@@ -1,34 +1,35 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
-from contextlib import asynccontextmanager
-import uvicorn
+from pathlib import Path
 
-from src.auth.create_admin import create_admin_user
-from src.database import async_session_maker
-from src.auth.router import router as auth_router
-from src.shop.router import router as shop_router
+from .auth.router import router as auth_router
+from .shop.router import router as shop_router
+from .recommendation_engine.router import router as recommendation_router  
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with async_session_maker() as session:
-        await create_admin_user(session)
-    yield
+app = FastAPI()
 
-app = FastAPI(lifespan=lifespan)
+# CORS — если frontend работает отдельно
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # на проде обязательно укажи конкретный origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(shop_router, prefix="/shop", tags=["shop"])
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(shop_router, prefix="/api/shop")
+app.include_router(recommendation_router, prefix="/api/recommendations")
 
-app.mount("/static", StaticFiles(directory="src/auth/static"), name="static")
-templates = Jinja2Templates(directory="src/auth/templates")
+# Раздача frontend
+static_path = Path(__file__).parent / "static"
+app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 
-@app.get("/")
-async def root():
-
-    return RedirectResponse(url="/auth/login", status_code=302)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", reload=True)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    if full_path.startswith("api"):
+        return {"detail": "Not Found"}
+    return FileResponse(static_path / "index.html")
