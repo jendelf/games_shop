@@ -1,51 +1,43 @@
-from database import new_session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from .models import Game
-from .schemas import GameCreate, GameOut, GameUpdate
-from sqlalchemy import select
+from .schemas import GameCreate, GameOut, GameUpdate, PageParams
 from .exceptions import GameNotFound, GameAlreadyExist
-
+from src.database import async_session_maker
 
 class GameRepository:
     @classmethod
-    async def add_game(cls, game_title: str, data: GameCreate) -> GameOut:  #Add new game to the shop
-        async with new_session() as session:
+    async def add_game(cls, game_title: str, data: GameCreate) -> GameOut:
+        async with async_session_maker() as session:
             query = select(Game).where(Game.name == game_title)
             result = await session.execute(query)
             game_model = result.scalar_one_or_none()
-            if game_model is not None:
-                raise GameAlreadyExist(game_title) 
-            game_dict = data.model_dump()
-            game = Game(**game_dict)
+            if game_model:
+                raise GameAlreadyExist(game_title)
+            game = Game(**data.model_dump())
             session.add(game)
             await session.flush()
             await session.commit()
             return GameOut.model_validate(game)
-        
+
     @classmethod
-    async def get_all(cls) -> list[GameOut]: # Retrieve all games from DB 
-        async with new_session() as session:
-            query = select(Game)
-            result = await session.execute(query)
-            game_models = result.scalars().all()
-            game_schemas = [GameOut.model_validate(game_model) for game_model in game_models]
-            return game_schemas
-    @classmethod
-    async def update_game(cls, game_id: int, data: GameUpdate) -> GameOut: #Update information about the game
-        async with new_session() as session:
-            query = select(Game).where(Game.id == game_id) 
+    async def update_game(cls, game_id: int, data: GameUpdate) -> GameOut:
+        async with async_session_maker() as session:
+            query = select(Game).where(Game.id == game_id)
             result = await session.execute(query)
             game = result.scalar_one_or_none()
             if game is None:
                 raise GameNotFound(game_id)
             update_data = data.model_dump(exclude_unset=True)
-            for key, value in update_data.items(): # Automatically change parameters that came from the client
+            for key, value in update_data.items():
                 setattr(game, key, value)
-            await session.refresh(game)
             await session.commit()
+            await session.refresh(game)
             return GameOut.model_validate(game)
+
     @classmethod
-    async def delete_game(cls, game_id) -> str:
-        async with new_session() as session:
+    async def delete_game(cls, game_id: int) -> dict:
+        async with async_session_maker() as session:
             query = select(Game).where(Game.id == game_id)
             result = await session.execute(query)
             game = result.scalar_one_or_none()
@@ -53,8 +45,19 @@ class GameRepository:
                 raise GameNotFound(game_id)
             await session.delete(game)
             await session.commit()
-            return {f"Game '{game.name}' was successfully deleted!"}
-    
+            return {"message": f"Game '{game.name}' was successfully deleted!"}
+
+    @classmethod
+    async def get_items_with_pagination(cls, session: AsyncSession, pagination: PageParams):
+        query = select(Game).offset(pagination.offset).limit(pagination.page_size)
+        result = await session.execute(query)
+        return result.scalars().all()
+
+    @classmethod
+    async def count_items(cls, session: AsyncSession) -> int:
+        result = await session.execute(select(func.count()).select_from(Game))
+        return result.scalar()
+
 
 
 

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gamer Questionnaire</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+            background-color: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 50px auto;
+            background: white;
+            padding: 40px 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px black
+        }
+
+        h1 {
+            text-align: center;
+            color: black;
+        }
+
+        label {
+            font-weight: 600;
+            margin-top: 20px;
+            display: block;
+            color: rgb(41, 40, 40);
+        }
+
+        .checkbox-group {
+            margin-top: 10px;
+        }
+
+        .checkbox-group label {
+            display: block;
+            font-weight: normal;
+            margin-left: 5px;
+        }
+
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: 1px solid rgb(227, 226, 226);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        button {
+            margin-top: 30px;
+            width: 100%;
+            padding: 14px;
+            background-color: rgb(8, 169, 24);
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: rgb(94, 148, 13);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gamer Questionnaire</h1>
+
+    <form action="/submit" method="post">
+        <label for="game_mode">Do you prefer online or offline games?</label>
+        <select name="game_mode" id="game_mode" required>
+            <option value="" disabled selected>Select an option</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+            <option value="any">No preference</option>
+        </select>
+
+        <label>Which game genres do you enjoy the most?</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="genres" value="action"> Action</label>
+            <label><input type="checkbox" name="genres" value="adventure"> Adventure</label>
+            <label><input type="checkbox" name="genres" value="rpg"> RPG</label>
+            <label><input type="checkbox" name="genres" value="simulation"> Simulation</label>
+            <label><input type="checkbox" name="genres" value="strategy"> Strategy</label>
+            <label><input type="checkbox" name="genres" value="horror"> Horror</label>
+            <label><input type="checkbox" name="genres" value="sandbox"> Sandbox</label>
+            <label><input type="checkbox" name="genres" value="sports"> Sports</label>
+            <label><input type="checkbox" name="genres" value="puzzle"> Puzzle</label>
+            <label><input type="checkbox" name="genres" value="visual_novel"> Visual Novels</label>
+            <label><input type="text" name="genres_other" placeholder="Other (please specify)"> </label>
+        </div>
+
+        <label for="favorites">List 1-3 games you really enjoyed:</label>
+        <textarea name="favorites" id="favorites" rows="3" placeholder="e.g. The Witcher 3, Portal 2, Stardew Valley" required></textarea>
+
+        <button type="submit">Submit</button>
+    </form>
+</div>
+
+</body>
+</html>

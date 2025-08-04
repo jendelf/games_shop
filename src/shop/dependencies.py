@@ -1,8 +1,8 @@
 from fastapi import Query
-from schemas import PaginationParams
+from .schemas import PageParams
 
-def get_pagination_params(limit: int = Query(20, ge=0, le=100, description="Number of elements on a page"),
-                          offset: int = Query(0, ge=0, description="Shift for pagination"),
-                           sort_by: str | None = Query(None),
-                            search: str| None = Query(None) ) -> PaginationParams:
-    return PaginationParams(limit=limit, offset=offset, sort_by=sort_by, search=search)
+def get_pagination_params(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100)
+) -> PageParams:
+    return PageParams(page=page, page_size=page_size)

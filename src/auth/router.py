@@ -17,7 +17,8 @@ from .exceptions import RefreshTokenMissing
 
 router = APIRouter()
 
-# ---------------------- Auth API ----------------------
+#AUTH API
+# -----------------------------------------------------------------------------------------------
 
 @router.post("/register", response_model=UserOut, status_code=201)
 async def register(user: UserIn, session: AsyncSession = Depends(get_session)):
@@ -45,7 +46,8 @@ async def logout(request: Request, session: AsyncSession = Depends(get_session))
         await user_logout(refresh_token, session)
     return {"detail": "Logged out"}
 
-# ---------------------- User API ----------------------
+# USER API
+# ---------------------------------------------------------------------------------
 
 @router.get("/me", response_model=UserOut)
 async def get_current_user(current_user: Annotated[User, Depends(get_current_active_user)]):
@@ -58,7 +60,8 @@ async def get_library(
 ):
     return await get_users_games(current_user, session)
 
-# ---------------------- Admin API ----------------------
+#ADMIN API
+# -----------------------------------------------------------------------------------
 
 @router.get("/admin/users", response_model=list[UserOut])
 async def admin_get_users(
