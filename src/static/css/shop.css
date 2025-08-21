@@ -1,51 +1,25 @@
-body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-    min-height: 100vh;
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.shop-container {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    margin: 20px;
-    padding: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-}
-
-.shop-container h2 {
-    text-align: center;
-    color: white;
-    font-size: 36px;
-    margin-bottom: 40px;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    font-weight: 800;
-}
-
 .games-container, .games-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-    padding: 0;
-    max-width: 1400px;
+    gap: 24px;
+    padding: 24px;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
 .game-card {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(145deg, #ffffff, #f8f9fc);
+    border: none;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 520px;
+    height: 500px;
     width: 100%;
-    backdrop-filter: blur(5px);
 }
 
 .game-card::before {
@@ -59,9 +33,8 @@ body {
 }
 
 .game-card:hover {
-    transform: translateY(-8px) scale(1.03);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
-    background: rgba(255, 255, 255, 1);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
 }
 
 .game-image {
@@ -221,33 +194,20 @@ body {
 @media (max-width: 1024px) {
     .games-container, .games-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 25px;
-    }
-    
-    .shop-container {
-        margin: 15px;
-        padding: 25px;
+        gap: 20px;
+        padding: 20px;
     }
 }
 
 @media (max-width: 768px) {
     .games-container, .games-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
-    }
-    
-    .shop-container {
-        margin: 10px;
-        padding: 20px;
-    }
-    
-    .shop-container h2 {
-        font-size: 28px;
-        margin-bottom: 30px;
+        gap: 16px;
+        padding: 16px;
     }
     
     .game-card {
         height: auto;
-        min-height: 450px;
+        min-height: 400px;
     }
 }

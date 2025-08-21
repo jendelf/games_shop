@@ -7,10 +7,24 @@ import {
   getAllUsers,
   banUser,
   updateUserRole
-} from "./api.mjs";
+} from "./auth_api.mjs";
+import { shopPage } from '/js/shop/shop_api.mjs'; 
+const { initializeShop } = await import('/js/shop/shop.js');
 
 function clearApp() {
   document.getElementById("app").innerHTML = "";
+}
+
+// get roles from server's part
+async function fetchRoles() {
+  const res = await fetch(`${API_URL}/api/auth/roles`);
+  if (!res.ok) {
+    console.error("can't get roles");
+    return [];
+  }
+  const data = await res.json();
+  console.log("fetchRoles data:", data);
+  return data;
 }
 
 function renderLoginForm() {
@@ -41,7 +55,10 @@ function renderLoginForm() {
     }
   });
 
-  document.getElementById("go-register").addEventListener("click", renderRegisterForm);
+  document.getElementById("go-register").addEventListener("click", (e) => {
+  e.preventDefault();
+  renderRegisterForm();
+});
 }
 
 function renderRegisterForm() {
@@ -50,53 +67,66 @@ function renderRegisterForm() {
   app.innerHTML = `
     <div class="auth-container">
       <h2>Register</h2>
-      <div class="auth-form">
-        <input type="text" id="register-username" placeholder="Username" />
-        <input type="password" id="register-password" placeholder="Password" />
-        <button id="register-btn">Register</button>
-      </div>
-      <p class="auth-switch">Already have an account? <a href="#" id="go-login">Login</a></p>
+      <form id="register-form" class="auth-form">
+        <input type="text" name="username" placeholder="Username" required />
+        <input type="password" name="password" placeholder="Password" required />
+        <input type="password" name="confirmPassword" placeholder="Confirm Password" required />
+        <button type="submit">Register</button>
+      </form>
+      <p class="auth-switch">Already have an account? <a href="#" id="go-login">Login here</a></p>
     </div>
   `;
 
-  document.getElementById("register-btn").addEventListener("click", async () => {
-    const username = document.getElementById("register-username").value;
-    const password = document.getElementById("register-password").value;
-    if (!username || !password) {
-      alert("Please fill in both fields");
+  document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = e.target.username.value;
+    const password = e.target.password.value;
+    const confirmPassword = e.target.confirmPassword.value;
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
       return;
     }
-    await registerUser(username, password);
-    alert("Registration successful");
-    renderLoginForm();
+
+    const result = await registerUser(username, password);
+    if (result) {
+      renderLoginForm();
+    }
   });
 
-  document.getElementById("go-login").addEventListener("click", renderLoginForm);
-}
-
-function renderShop(user) {
-  clearApp();
-  const app = document.getElementById("app");
-  app.innerHTML = `
-    <div class="shop-container">
-      <h2>Welcome, ${user.username}!</h2>
-      <div class="shop-actions">
-        <button id="library-btn" class="action-btn">My Library</button>
-        <button id="logout-btn" class="logout-btn">Logout</button>
-      </div>
-    </div>
-  `;
-
-  document.getElementById("library-btn").addEventListener("click", async () => {
-    const library = await getLibrary();
-    displayLibrary(library);
-  });
-
-  document.getElementById("logout-btn").addEventListener("click", async () => {
-    await logout();
+  document.getElementById("go-login").addEventListener("click", (e) => {
+    e.preventDefault();
     renderLoginForm();
   });
 }
+
+async function renderShop() {
+  await initializeShop();
+}
+
+function displayGames(games) {
+  const gamesContainer = document.getElementById("games-container");
+
+  if (!games.length) {
+    gamesContainer.innerHTML = `<p>No games are available</p>`;
+    return;
+  }
+
+  games.forEach((game) => {
+    const gameCard = document.createElement("div");
+    gameCard.classList.add("game-card");
+
+    gameCard.innerHTML = `
+      <h3>${game.name}</h3>
+      <p>Рейтинг: ${game.rating ?? "N/A"}</p>
+      <p>Цена: $${game.price ?? "N/A"}</p>
+      <img src="${game.image_url ?? ""}" alt="${game.name}" width="150">
+    `;
+
+    gamesContainer.appendChild(gameCard);
+  });
+}
+
 
 function displayLibrary(library) {
   clearApp();

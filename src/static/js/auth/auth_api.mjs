@@ -13,32 +13,27 @@ function getHeaders(auth = true) {
     return headers;
 }
 
-async function registerUser(username, password) {
-    const res = await fetch(`${API_URL}/api/auth/register`, {
-        method: "POST",
-        headers: getHeaders(false),
-        body: JSON.stringify({ username, password })
-    });
-    return res.json();
+async function registerUser(email, password) {
+  const username = email.split("@")[0];
+
+  const res = await fetch(`${API_URL}/api/auth/register`, {
+    method: "POST",
+    headers: getHeaders(false),
+    body: JSON.stringify({ username, email, password}),
+  });
+  return res.json();
 }
 
 async function login(username, password) {
-    const body = new URLSearchParams();
-    body.append("username", username);
-    body.append("password", password);
-
-    const res = await fetch(`${API_URL}/api/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("refresh_token", data.refresh_token);
-    }
-    return data;
+  const res = await fetch(`${API_URL}/api/auth/token`, {
+    method: "POST",
+    body: new URLSearchParams({ username, password }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+  if (!res.ok) throw new Error("Login failed");
+  const data = await res.json();
+  localStorage.setItem("access_token", data.access_token);
+  return data;
 }
 
 async function refreshToken() {
@@ -65,10 +60,17 @@ async function logout() {
 }
 
 async function getCurrentUser() {
-    const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: getHeaders()
-    });
-    return res.json();
+  const token = localStorage.getItem("access_token");
+  if (!token) return null;
+
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) return null;
+  return await res.json();
 }
 
 async function getLibrary() {

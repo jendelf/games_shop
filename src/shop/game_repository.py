@@ -58,9 +58,13 @@ class GameRepository:
         result = await session.execute(select(func.count()).select_from(Game))
         return result.scalar()
 
-
-
-
+    @classmethod
+    async def set_game_image(cls, game: Game, image_url: str, session: AsyncSession):
+        game.image_url = image_url
+        session.add(game)
+        await session.commit()
+        await session.refresh(game)
+        return game
 
 
 

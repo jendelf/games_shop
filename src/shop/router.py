@@ -1,50 +1,40 @@
-from fastapi import APIRouter, Depends, Request,  Form, status
-from fastapi.templating import Jinja2Templates
-from .schemas import PageParams, GameCreate
+from fastapi import APIRouter, Depends, status
+from .schemas import PageParams, GameCreate, IdSchema, GameUpdate, GameOut
 from .dependencies import get_pagination_params
-from .service.game import get_paginated_games, create_game_service
+from .service.game import get_paginated_games, create_game_service, delete_game_service, update_game_service
 from src.database import async_session_maker
-from fastapi.responses import RedirectResponse
 from src.auth.dependencies import get_current_user
 from src.auth.schemas import UserOut
+from typing import List
 
-import json
-router = APIRouter()
-templates = Jinja2Templates(directory="src/shop/static/templates")
+router = APIRouter(tags=["shop"])
 
-@router.get("/")
-async def shop_page(
-    request: Request,
-    pagination: PageParams = Depends(get_pagination_params)
-):
+@router.get("/", response_model=List[GameOut])
+async def shop_page(pagination: PageParams = Depends(get_pagination_params)):
     async with async_session_maker() as session:
-        result = await get_paginated_games(session, pagination)
-        return templates.TemplateResponse("shop.html", {
-            "request": request,
-            **result
-        })
+        return await get_paginated_games(session, pagination)
 
-@router.get("/add")
-async def add_game_form(request: Request):
-    return templates.TemplateResponse("game_add.html", {"request": request})
-
-@router.post("/add")
+@router.post("/add", status_code=status.HTTP_201_CREATED)
 async def add_game_post(
-    request: Request,
-    name: str = Form(...),
-    description: str = Form(None),
-    price: float = Form(...),
-    genres: str = Form(...),
-    photos_url: str = Form(...),
-    current_user: UserOut = Depends(get_current_user),  
+    game_data: GameCreate,
+    current_user: UserOut = Depends(get_current_user),
 ):
-    game_data = GameCreate(
-        name=name,
-        description=description,
-        price=price,
-        genres=json.loads(genres),
-        photos_url=json.loads(photos_url),
-    )
-
     await create_game_service(game_data, owner_id=current_user.id)
-    return RedirectResponse(url="/shop/", status_code=status.HTTP_303_SEE_OTHER)
+    return {"message": "Game created successfully"}
+
+@router.post("/delete")
+async def delete_game_post(payload: IdSchema):
+    game_id = payload.id
+    await delete_game_service(game_id)
+    return {"id": game_id, "message": "Game deleted successfully!"}
+
+@router.post("/update")
+async def update_game_post(game_data: GameUpdate):
+    await update_game_service(game_data)
+    return {"id": game_data, "message": "Game updated successfully"}
+
+@router.post("/wishlist", response_model=dict)
+async def add_wishlist_post(payload: IdSchema, current_user: UserOut = Depends(get_current_user)):
+    game_id = payload.id
+    await add_wishlist_service(game_id, user_id=current_user.id)
+    return {"id": game_id, "message": "Game added to wishlist!"}

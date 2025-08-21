@@ -12,6 +12,8 @@ class Game(Base):
     appid: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
 
+    image_url: Mapped[str] = mapped_column(nullable=True) 
+
     release_date: Mapped[date | None] = mapped_column(nullable=True)
     platforms: Mapped[str] = mapped_column(default="windows")
     developer: Mapped[str] = mapped_column(default="", nullable=False)

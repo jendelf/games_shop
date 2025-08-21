@@ -16,14 +16,14 @@ from src.role import Role
 from .exceptions import RefreshTokenMissing
 
 router = APIRouter()
-
 #AUTH API
 # -----------------------------------------------------------------------------------------------
 
-@router.post("/register", response_model=UserOut, status_code=201)
+@router.post("/register")
 async def register(user: UserIn, session: AsyncSession = Depends(get_session)):
-    await user_registration(user, session)
-    return {"detail": "User registered successfully"}
+    print("Received user:", user.dict())
+    new_user = await user_registration(user, session)
+    return new_user
 
 @router.post("/token", response_model=TokenPair)
 async def login(

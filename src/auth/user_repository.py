@@ -46,7 +46,9 @@ async def authenticate_user(email: str, password: str, session: AsyncSession) ->
 
 
 async def user_registration(user_data: UserIn, session: AsyncSession) -> User:
-    existing_user = await session.execute(select(User).where(User.email == user_data.email))
+    existing_user = await session.execute(
+        select(User).where(User.email == user_data.email)
+    )
     if existing_user.scalar_one_or_none():
         raise UserAlreadyExists(user_data.email)
 
@@ -56,9 +58,9 @@ async def user_registration(user_data: UserIn, session: AsyncSession) -> User:
         username=user_data.username,
         email=user_data.email,
         hashed_password=hashed_password,
-        disabled=user_data.disabled,
-        balance=user_data.balance,
-        role=user_data.role
+        disabled=False,   
+        balance=0.0,           
+        role=user_data.role    
     )
 
     session.add(new_user)

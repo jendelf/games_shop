@@ -1,16 +1,12 @@
-from pydantic import BaseModel,ConfigDict, EmailStr, field_validator, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, Field
 import re
 from .models import Role
-class UserBase(BaseModel):
-    id: int
+
+class UserIn(BaseModel):
     username: str = Field(..., max_length=100, description="Username is maximum 100 letters")
     email: EmailStr
-    disabled: bool = Field(default=False, description="Is account blocked or not")
-    balance: float = Field(default=0.0, ge=0)
-    role: Role = Role.CUSTOMER
-
-class UserIn(UserBase):
     password: str
+    role: Role = Role.CUSTOMER
 
     @field_validator("password")
     @classmethod
@@ -25,19 +21,27 @@ class UserIn(UserBase):
             raise ValueError("Password must contain at least one special symbol")
         return value
 
-class UserOut(UserBase):
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    disabled: bool
+    balance: float
+    role: Role
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+
 class TokenData(BaseModel):
     email: EmailStr | None = None
-
-
-
