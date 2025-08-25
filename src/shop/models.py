@@ -6,9 +6,9 @@ from sqlalchemy.sql import func
 from typing import List
 from src.auth.models import User
 from src.recommendation_engine.models import GameSimilarity
+from sqlalchemy import Text
 
 class Game(Base):
-
     appid: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
 
@@ -30,6 +30,10 @@ class Game(Base):
 
     price: Mapped[float] = mapped_column(default=0.0, nullable=False)
 
+    # Новые поля для описания
+    short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detailed_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
@@ -37,7 +41,6 @@ class Game(Base):
     owner: Mapped["User"] = relationship("User", back_populates="items", lazy="selectin")
 
     carts: Mapped[List["Cart"]] = relationship("Cart", back_populates="game")
-
     recommendations: Mapped[List["Recommendation"]] = relationship("Recommendation", back_populates="game")
 
     similar_to = relationship(
@@ -52,7 +55,7 @@ class Game(Base):
         back_populates="to_game",
         cascade="all, delete-orphan"
     )
-
+    
 class Cart(TimestampedBase):
     __table_args__ = (
         PrimaryKeyConstraint("owner_id", "game_id"),

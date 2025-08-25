@@ -3,28 +3,16 @@ import {
   logout,
   registerUser,
   getCurrentUser,
-  getLibrary,
   getAllUsers,
   banUser,
   updateUserRole
 } from "./auth_api.mjs";
-import { shopPage } from '/js/shop/shop_api.mjs'; 
-const { initializeShop } = await import('/js/shop/shop.js');
+
+const { initializeShop } = await import("/js/shop/shop.js");
+const API_URL = "http://localhost:8000"
 
 function clearApp() {
   document.getElementById("app").innerHTML = "";
-}
-
-// get roles from server's part
-async function fetchRoles() {
-  const res = await fetch(`${API_URL}/api/auth/roles`);
-  if (!res.ok) {
-    console.error("can't get roles");
-    return [];
-  }
-  const data = await res.json();
-  console.log("fetchRoles data:", data);
-  return data;
 }
 
 function renderLoginForm() {
@@ -32,13 +20,17 @@ function renderLoginForm() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="auth-container">
-      <h2>Login</h2>
-      <form id="login-form" class="auth-form">
-        <input type="text" name="username" placeholder="Username" required />
-        <input type="password" name="password" placeholder="Password" required />
-        <button type="submit">Login</button>
-      </form>
-      <p class="auth-switch">No account? <a href="#" id="go-register">Register here</a></p>
+      <div class="auth-box">
+        <h2>Login</h2>
+        <form id="login-form" class="auth-form">
+          <input type="text" name="username" placeholder="Username" required />
+          <input type="password" name="password" placeholder="Password" required />
+          <button type="submit">Login</button>
+        </form>
+        <div class="auth-switch">Don't have an account? 
+          <a href="#" id="go-register">Register here</a>
+        </div>
+      </div>
     </div>
   `;
 
@@ -46,19 +38,26 @@ function renderLoginForm() {
     e.preventDefault();
     const username = e.target.username.value;
     const password = e.target.password.value;
-    const result = await login(username, password);
-    const user = await getCurrentUser();
-    if (user.role === "administrator") {
-      renderAdminPanel(user);
-    } else {
-      renderShop(user);
+
+    try {
+      await login(username, password);
+      const user = await getCurrentUser();
+
+      if (user.role === "administrator") {
+        renderAdminPanel(user);
+      } else {
+        renderShop();
+      }
+    } catch (err) {
+      alert("Login failed: " + err.message);
+      console.error(err);
     }
   });
 
   document.getElementById("go-register").addEventListener("click", (e) => {
-  e.preventDefault();
-  renderRegisterForm();
-});
+    e.preventDefault();
+    renderRegisterForm();
+  });
 }
 
 function renderRegisterForm() {
@@ -66,14 +65,18 @@ function renderRegisterForm() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="auth-container">
-      <h2>Register</h2>
-      <form id="register-form" class="auth-form">
-        <input type="text" name="username" placeholder="Username" required />
-        <input type="password" name="password" placeholder="Password" required />
-        <input type="password" name="confirmPassword" placeholder="Confirm Password" required />
-        <button type="submit">Register</button>
-      </form>
-      <p class="auth-switch">Already have an account? <a href="#" id="go-login">Login here</a></p>
+      <div class="auth-box">
+        <h2>Register</h2>
+        <form id="register-form" class="auth-form">
+          <input type="text" name="username" placeholder="Username" required />
+          <input type="password" name="password" placeholder="Password" required />
+          <input type="password" name="confirmPassword" placeholder="Confirm Password" required />
+          <button type="submit">Register</button>
+        </form>
+        <div class="auth-switch">Already have an account? 
+          <a href="#" id="go-login">Login here</a>
+        </div>
+      </div>
     </div>
   `;
 
@@ -88,9 +91,15 @@ function renderRegisterForm() {
       return;
     }
 
-    const result = await registerUser(username, password);
-    if (result) {
-      renderLoginForm();
+    try {
+      const result = await registerUser(username, password);
+      if (result) {
+        alert("Registration successful! Please log in.");
+        renderLoginForm();
+      }
+    } catch (err) {
+      alert("Registration failed: " + err.message);
+      console.error(err);
     }
   });
 
@@ -102,57 +111,6 @@ function renderRegisterForm() {
 
 async function renderShop() {
   await initializeShop();
-}
-
-function displayGames(games) {
-  const gamesContainer = document.getElementById("games-container");
-
-  if (!games.length) {
-    gamesContainer.innerHTML = `<p>No games are available</p>`;
-    return;
-  }
-
-  games.forEach((game) => {
-    const gameCard = document.createElement("div");
-    gameCard.classList.add("game-card");
-
-    gameCard.innerHTML = `
-      <h3>${game.name}</h3>
-      <p>Рейтинг: ${game.rating ?? "N/A"}</p>
-      <p>Цена: $${game.price ?? "N/A"}</p>
-      <img src="${game.image_url ?? ""}" alt="${game.name}" width="150">
-    `;
-
-    gamesContainer.appendChild(gameCard);
-  });
-}
-
-
-function displayLibrary(library) {
-  clearApp();
-  const app = document.getElementById("app");
-  app.innerHTML = `
-    <div class="library-container">
-      <h2>My Library</h2>
-      <div id="games-list" class="games-grid"></div>
-      <button id="back-btn" class="action-btn">Back to Shop</button>
-    </div>
-  `;
-
-  const gamesList = document.getElementById("games-list");
-  library.forEach(game => {
-    gamesList.innerHTML += `
-      <div class="game-card">
-        <h3>${game.title}</h3>
-        <p>Price: $${game.price}</p>
-      </div>
-    `;
-  });
-
-  document.getElementById("back-btn").addEventListener("click", async () => {
-    const user = await getCurrentUser();
-    renderShop(user);
-  });
 }
 
 async function renderAdminPanel(user) {
@@ -199,33 +157,26 @@ async function renderAdminPanel(user) {
     `;
     userListDiv.appendChild(userDiv);
 
-    const roleBtn = userDiv.querySelector(`#change-role-${u.id}`);
-    const roleSelect = userDiv.querySelector(`#role-${u.id}`);
-    const toggleBtn = userDiv.querySelector(`#toggle-block-${u.id}`);
-
-    roleBtn.addEventListener("click", async () => {
-      const newRole = roleSelect.value;
+    userDiv.querySelector(`#change-role-${u.id}`).addEventListener("click", async () => {
+      const newRole = userDiv.querySelector(`#role-${u.id}`).value;
       try {
         await updateUserRole(u.id, newRole);
         alert(`Role updated to ${newRole}`);
         renderAdminPanel(user);
       } catch (err) {
         alert("Error updating role: " + err.message);
-        console.error(err);
       }
     });
 
-    toggleBtn.addEventListener("click", async () => {
+    userDiv.querySelector(`#toggle-block-${u.id}`).addEventListener("click", async () => {
       try {
         await banUser(u.id);
         renderAdminPanel(user);
       } catch (err) {
         alert("Error updating status: " + err.message);
-        console.error(err);
       }
     });
   });
-  console.log("Users:", users);
 }
 
 async function tryAutoLogin() {
@@ -240,7 +191,7 @@ async function tryAutoLogin() {
     if (user.role === "administrator") {
       renderAdminPanel(user);
     } else {
-      renderShop(user);
+      renderShop();
     }
   } catch (error) {
     console.error("Auto-login error:", error);
@@ -248,7 +199,6 @@ async function tryAutoLogin() {
     renderLoginForm();
   }
 }
-
 
 document.getElementById("app").innerHTML = `
   <div class="loading-container">

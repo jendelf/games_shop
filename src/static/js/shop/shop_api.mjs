@@ -10,9 +10,9 @@ function getHeaders(auth = true) {
     return headers;
 }
 
-export async function shopPage() {
+export async function shopPage(page = 1, perPage = 12) {
   try {
-    const res = await fetch(`${API_URL}/api/shop/`, {
+    const res = await fetch(`${API_URL}/api/shop/?page=${page}&page_size=${perPage}`, {
       method: "GET",
       headers: getHeaders(false),
     });
@@ -21,12 +21,24 @@ export async function shopPage() {
       throw new Error(`HTTP error! status: ${res.status}`);
     }
 
-    return await res.json();
+    const data = await res.json();
+    
+    return {
+      games: data.games || [],
+      total: data.total || 0,
+      page: data.page || page,
+      perPage: data.page_size || perPage,
+      totalPages: data.total_pages || Math.ceil((data.total || 0) / perPage)
+    };
+    
   } catch (error) {
     console.error('Error fetching shop data:', error);
-    // Можно вернуть данные по умолчанию или пробросить ошибку дальше
     return { 
-      items: [], 
+      games: [], 
+      total: 0,
+      page: page,
+      perPage: perPage,
+      totalPages: 0,
       error: 'Failed to load shop data' 
     };
   }
@@ -203,4 +215,38 @@ export async function addCart(id){
     catch (err) {
         console.log(err.message)
     }
+}
+
+export async function getGameById(gameId) {
+  const response = await fetch(`${API_URL}/games/${gameId}`);
+  if (!response.ok) {
+    throw new Error('Game not found');
+  }
+  return await response.json();
+}
+
+export async function fetchGameData(gameId) {
+  try {
+    const response = await fetch(`${API_URL}/api/shop/game_info`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: gameId })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch game data');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Fetch game error:', error);
+    return {
+      name: `Game ${gameId}`,
+      price: 0,
+      description: "Game information not available",
+      appid: gameId
+    };
+  }
 }

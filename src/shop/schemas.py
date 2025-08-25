@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
-
 class PageParams(BaseModel):
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=100)
@@ -30,10 +29,17 @@ class GameCreate(GameBase):
     pass
 
 class GameOut(GameBase):
-    id: int = Field(alias="appid") 
-    owner_id: Optional[int] = None
-    model_config = ConfigDict(from_attributes=True)
-
+    appid: int
+    name: str
+    price: float
+    image_url: Optional[str] = None
+    photos_url: Optional[List[str]] = None
+    description: Optional[str] = None
+    detailed_description: Optional[str] = None
+    short_description: Optional[str] = None
+    model_config = {
+        "from_attributes": True
+    }
 class GameUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     price: Optional[float] = Field(None, gt=0)
@@ -62,3 +68,10 @@ class OrderOut(BaseModel):
     created_at: str
     total_price: float
     model_config = ConfigDict(from_attributes=True)
+
+class PaginatedResponse(BaseModel):
+    games: List[GameOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
