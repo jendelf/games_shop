@@ -31,15 +31,49 @@ async def get_paginated_games(session: AsyncSession, pagination: PageParams) -> 
         "total_pages": (total_count + pagination.page_size - 1) // pagination.page_size
     }
 
+from src.shop.models import Game
+from src.shop.schemas import GameCreate, GameUpdate, GameOut, PageParams
+from src.shop.exceptions import GameNotFound, GameAlreadyExist, PermissionDenied
+from src.shop.game_repository import GameRepository
+from src.database import async_session_maker
+
+
 async def create_game_service(game_data: GameCreate, owner_id: int) -> GameOut:
-    full_data = game_data.model_copy(update={"owner_id": owner_id})
-    game = await GameRepository.add_game(full_data)
-    return GameOut.model_validate(game)
+    async with async_session_maker() as session:
+        existing = await GameRepository.get_by_title(session, game_data.name)
+        if existing:
+            raise GameAlreadyExist(game_data.name)
 
-async def update_game_service(game_id: int, data: GameUpdate) -> GameOut:
-    updated_game = await GameRepository.update_game(game_id, data)
-    return GameOut.model_validate(updated_game)
+        game = Game(**game_data.model_dump(), owner_id=owner_id)
+        game = await GameRepository.add(session, game)
+        return GameOut.model_validate(game)
 
-async def delete_game_service(game_id: int) -> dict:
-    await GameRepository.delete_game(game_id)
-    return {"id": game_id, "message": "Game deleted successfully"}
+
+async def update_game_service(game_id: int, data: GameUpdate, user_id: int) -> GameOut:
+    async with async_session_maker() as session:
+        game = await GameRepository.get_by_id(session, game_id)
+        if not game:
+            raise GameNotFound(game_id)
+
+        if game.owner_id != user_id:
+            raise PermissionDenied("You cannot update this game")
+
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(game, key, value)
+
+        updated = await GameRepository.update(session, game)
+        return GameOut.model_validate(updated)
+
+
+async def delete_game_service(game_id: int, user_id: int) -> dict:
+    async with async_session_maker() as session:
+        game = await GameRepository.get_by_id(session, game_id)
+        if not game:
+            raise GameNotFound(game_id)
+
+        if game.owner_id != user_id:
+            raise PermissionDenied("You cannot delete this game")
+
+        await GameRepository.delete(session, game)
+        return {"id": game_id, "message": f"Game '{game.name}' deleted successfully"}

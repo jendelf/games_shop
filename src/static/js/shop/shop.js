@@ -85,7 +85,7 @@ export async function initializeShop(page = 1) {
     app.innerHTML = `
       <div class="shop-container">
         <h2>GAMES SHOP</h2>
-        <p>Ошибка загрузки игр. Попробуйте позже.</p>
+        <p>Failed to get games.</p>
       </div>
     `;
   }
@@ -149,8 +149,7 @@ function renderGameCard(game) {
 
   card.addEventListener("click", (e) => {
     e.preventDefault();
-    console.log('=== КЛИК ПО КАРТОЧКЕ ===');
-    console.log('game.appid:', game.appid, 'тип:', typeof game.appid);
+    console.log('game.appid:', game.appid, 'type:', typeof game.appid);
     renderGamePage(game.appid);
   });
 

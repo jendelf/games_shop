@@ -9,4 +9,8 @@ class GameAlreadyExist(Exception):
         self.title = title
         self.message = {f"You can not add {title} because it's already exist"}
         super(). __init__(self.message)
-    
+
+class PermissionDenied(Exception):
+    def __init__(self, title: str):
+        self.title = title
+        self.message = {f"You don't have rights to delete this game!"}

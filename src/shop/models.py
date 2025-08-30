@@ -30,7 +30,6 @@ class Game(Base):
 
     price: Mapped[float] = mapped_column(default=0.0, nullable=False)
 
-    # Новые поля для описания
     short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     detailed_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 

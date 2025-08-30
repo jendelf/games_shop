@@ -49,6 +49,9 @@ class GameUpdate(BaseModel):
 class CartBase(BaseModel):
     game_id: int = Field(..., description="game id added to cart")
     quantity: int = Field(..., description="Number of items")
+    user_id: int = Field(..., description="owner id")
+    model_config = ConfigDict(from_attributes=True)
+
 
 class CartOut(CartBase):
     user_id: int
