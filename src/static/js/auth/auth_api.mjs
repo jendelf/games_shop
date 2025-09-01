@@ -19,8 +19,14 @@ async function registerUser(email, password) {
   const res = await fetch(`${API_URL}/api/auth/register`, {
     method: "POST",
     headers: getHeaders(false),
-    body: JSON.stringify({ username, email, password}),
+    body: JSON.stringify({ username, email, password }),
   });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || "Registration failed");
+  }
+
   return res.json();
 }
 
@@ -30,21 +36,37 @@ async function login(username, password) {
     body: new URLSearchParams({ username, password }),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   });
-  if (!res.ok) throw new Error("Login failed");
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || "Login failed");
+  }
+
   const data = await res.json();
   localStorage.setItem("access_token", data.access_token);
+  if (data.refresh_token) {
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
   return data;
 }
 
 async function refreshToken() {
     const refresh_token = localStorage.getItem("refresh_token");
+    if (!refresh_token) throw new Error("No refresh token");
+
     const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${refresh_token}` }
     });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to refresh token");
+    }
+
     const data = await res.json();
-    if (res.ok) {
-        localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("access_token", data.access_token);
+    if (data.refresh_token) {
         localStorage.setItem("refresh_token", data.refresh_token);
     }
     return data;
@@ -52,11 +74,16 @@ async function refreshToken() {
 
 async function logout() {
     const refresh_token = localStorage.getItem("refresh_token");
-    await fetch(`${API_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${refresh_token}` }
-    });
-    localStorage.clear();
+    try {
+        if (refresh_token) {
+            await fetch(`${API_URL}/api/auth/logout`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${refresh_token}` }
+            });
+        }
+    } finally {
+        localStorage.clear();
+    }
 }
 
 async function getCurrentUser() {
@@ -70,36 +97,54 @@ async function getCurrentUser() {
   });
 
   if (!res.ok) return null;
-  return await res.json();
+  return res.json();
 }
 
 async function getLibrary() {
     const res = await fetch(`${API_URL}/api/auth/me/library`, {
         headers: getHeaders()
     });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to load library");
+    }
+
     return res.json();
 }
 
-
 //-----------------------------------------------------------------------------------------Admin functionality
+
 async function getAllUsers() {
     const res = await fetch(`${API_URL}/api/auth/admin/users`, {
         headers: getHeaders()
     });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to load users");
+    }
+
     return res.json();
 }
 
 async function banUser(userId) {
-    return await fetch(`${API_URL}/api/auth/admin/ban?user_id=${userId}`, {
+    const res = await fetch(`${API_URL}/api/auth/admin/ban?user_id=${userId}`, {
         method: "POST",
         headers: getHeaders()
     });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to ban user");
+    }
+
+    return res.json();
 }
 
 async function updateUserRole(userId, role) {
-
-  if (typeof userId === 'undefined' || isNaN(parseInt(userId))) {
-    throw new Error('Invalid user ID');
+  if (!Number.isInteger(Number(userId))) {
+    throw new Error("Invalid user ID");
   }
 
   const res = await fetch(`${API_URL}/api/auth/admin/set-role?user_id=${userId}&role=${role}`, {
@@ -108,8 +153,8 @@ async function updateUserRole(userId, role) {
   });
   
   if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.detail || 'Failed to update role');
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to update role");
   }
   
   return res.json();

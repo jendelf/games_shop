@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from .models import Game
 from .schemas import PageParams
-
+from typing import List
 
 class GameRepository:
     @classmethod
@@ -51,3 +51,21 @@ class GameRepository:
         await session.commit()
         await session.refresh(game)
         return game
+
+    @staticmethod
+    async def get_paginated(session: AsyncSession, limit: int, offset: int) -> List[Game]:
+        query = await session.execute(
+            select(Game)
+            .order_by(Game.positive_ratings.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return query.scalars().all()
+
+    @staticmethod
+    async def count_all(session: AsyncSession) -> int:
+        query = await session.execute(select(func.count()).select_from(Game))
+        return query.scalar()
+    
+
+    #TODO тут нужно просмотреть где-то изменить classmethod на staticmethod, функцию count_all привести к виду как в wishlist repository

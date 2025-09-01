@@ -4,40 +4,57 @@ function getHeaders(auth = true) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
     const token = getAccessToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (!token) throw new Error("No access token, please log in");
+    headers["Authorization"] = `Bearer ${token}`;
   }
   return headers;
 }
 
+async function handleResponse(res, defaultError = "Request failed") {
+  let data = null;
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!res.ok) {
+    const message = data?.message || `${defaultError} (status ${res.status})`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 export async function shopPage(page = 1, perPage = 12) {
   try {
-    const res = await fetch(`${API_URL}/api/shop/?page=${page}&page_size=${perPage}`, {
-      method: "GET",
-      headers: getHeaders(false),
-    });
+    const res = await fetch(
+      `${API_URL}/api/shop/?page=${page}&page_size=${perPage}`,
+      { method: "GET", headers: getHeaders(false) }
+    );
 
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-
-    const data = await res.json();
+    const data = await handleResponse(res, "Failed to load shop data");
 
     return {
-      games: data.games || [],
-      total: data.total || 0,
-      page: data.page || page,
-      perPage: data.page_size || perPage,
-      totalPages: data.total_pages || Math.ceil((data.total || 0) / perPage),
+      games: data?.games || [],
+      total: data?.total || 0,
+      page: data?.page || page,
+      perPage: data?.page_size || perPage,
+      totalPages:
+        data?.total_pages ||
+        Math.ceil((data?.total || 0) / (data?.page_size || perPage)),
     };
   } catch (error) {
-    console.error("Error fetching shop data:", error);
+    console.error("Error fetching shop data:", error.message);
     return {
       games: [],
       total: 0,
-      page: page,
-      perPage: perPage,
+      page,
+      perPage,
       totalPages: 0,
-      error: "Failed to load shop data",
+      error: error.message,
     };
   }
 }
@@ -49,11 +66,12 @@ export async function addGame(gameData) {
       headers: getHeaders(true),
       body: JSON.stringify(gameData),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to add game");
-    console.log(data.message || "Game created successfully!");
+
+    const data = await handleResponse(res, "Failed to add game");
+    return data;
   } catch (err) {
-    console.error(err.message);
+    console.error("Add game failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -62,13 +80,15 @@ export async function deleteGame(gameId) {
     const res = await fetch(`${API_URL}/api/shop/delete`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to delete game");
-    console.log(data.message || "Game deleted successfully!");
+
+    const data = await handleResponse(res, "Failed to delete game");
+    console.log(data?.message || "Game deleted successfully!");
+    return data;
   } catch (err) {
-    console.log(err.message);
+    console.error("Delete game failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -79,11 +99,13 @@ export async function updateGame(gameData) {
       headers: getHeaders(true),
       body: JSON.stringify(gameData),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Could not update game data");
-    console.log(data.message || "Game information updated successfully!");
+
+    const data = await handleResponse(res, "Could not update game data");
+    console.log(data?.message || "Game information updated successfully!");
+    return data;
   } catch (err) {
-    console.log(err.message);
+    console.error("Update game failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -92,13 +114,15 @@ export async function addWishlist(gameId) {
     const res = await fetch(`${API_URL}/api/shop/wishlist`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to add to wishlist");
-    console.log(data.message || "Game added to wishlist!");
+
+    const data = await handleResponse(res, "Failed to add to wishlist");
+    console.log(data?.message || "Game added to wishlist!");
+    return data;
   } catch (err) {
-    console.log(err.message);
+    console.error("Wishlist failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -107,12 +131,13 @@ export async function like(gameId) {
     const res = await fetch(`${API_URL}/api/shop/like`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to do this action");
+
+    return await handleResponse(res, "Failed to like game");
   } catch (err) {
-    console.log(err.message);
+    console.error("Like failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -121,13 +146,12 @@ export async function gameInfo(gameId) {
     const res = await fetch(`${API_URL}/api/shop/game_info`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to get game info");
-    return data;
+
+    return await handleResponse(res, "Failed to get game info");
   } catch (err) {
-    console.log(err.message);
+    console.error("Get game info failed:", err.message);
     return null;
   }
 }
@@ -137,13 +161,15 @@ export async function buyGame(gameId) {
     const res = await fetch(`${API_URL}/api/shop/buy`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error. Failed to buy a game");
-    console.log(data.message || "Game successfully purchased");
+
+    const data = await handleResponse(res, "Error. Failed to buy a game");
+    console.log(data?.message || "Game successfully purchased");
+    return data;
   } catch (err) {
-    console.log(err.message);
+    console.error("Buy game failed:", err.message);
+    return { error: err.message };
   }
 }
 
@@ -152,43 +178,12 @@ export async function addCart(gameId) {
     const res = await fetch(`${API_URL}/api/shop/cart`, {
       method: "POST",
       headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ id: gameId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Error. Failed to add game to the cart");
+
+    return await handleResponse(res, "Error. Failed to add game to the cart");
   } catch (err) {
-    console.log(err.message);
-  }
-}
-
-export async function getGameById(gameId) {
-  const response = await fetch(`${API_URL}/games/${gameId}`);
-  if (!response.ok) {
-    throw new Error("Game not found");
-  }
-  return await response.json();
-}
-
-export async function fetchGameData(gameId) {
-  try {
-    const response = await fetch(`${API_URL}/api/shop/game_info`, {
-      method: "POST",
-      headers: getHeaders(true),
-      body: JSON.stringify({ gameId }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch game data");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Fetch game error:", error);
-    return {
-      name: `Game ${gameId}`,
-      price: 0,
-      description: "Game information not available",
-      appid: gameId,
-    };
+    console.error("Add to cart failed:", err.message);
+    return { error: err.message };
   }
 }

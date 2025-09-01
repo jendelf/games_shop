@@ -12,10 +12,6 @@ class PageParams(BaseModel):
     def offset(self) -> int:
         return (self.page - 1) * self.page_size
 
-    @property
-    def offset(self) -> int:
-        return (self.page - 1) * self.page_size
-
 class IdSchema(BaseModel):
     id: int = Field(..., description="ID of the object")
 

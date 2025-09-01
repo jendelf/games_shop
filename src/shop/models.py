@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 from src.database import Base, TimestampedBase
 from datetime import date, datetime
-from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-from sqlalchemy import ForeignKey, PrimaryKeyConstraint
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from typing import List
-from src.auth.models import User
-from src.recommendation_engine.models import GameSimilarity
-from sqlalchemy import Text
+from sqlalchemy import ForeignKey, PrimaryKeyConstraint, Table, Text
+
+from typing import TYPE_CHECKING, List
+
+if TYPE_CHECKING:
+    from src.auth.models import User
+    from src.orders.models import OrderItem
 
 class Game(Base):
     appid: Mapped[int] = mapped_column(primary_key=True)
@@ -40,7 +45,7 @@ class Game(Base):
     owner: Mapped["User"] = relationship("User", back_populates="items", lazy="selectin")
 
     carts: Mapped[List["Cart"]] = relationship("Cart", back_populates="game")
-    recommendations: Mapped[List["Recommendation"]] = relationship("Recommendation", back_populates="game")
+    order_items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="game")
 
     similar_to = relationship(
         "GameSimilarity",
@@ -62,40 +67,26 @@ class Cart(TimestampedBase):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     game_id: Mapped[int] = mapped_column(ForeignKey("games.appid"))
 
-    quantity: Mapped[int] = mapped_column(nullable=True)
+    games_quantity: Mapped[int] = mapped_column(nullable=True)
     
     owner: Mapped["User"] = relationship("User", back_populates="cart_items")
     game: Mapped["Game"] = relationship("Game", back_populates="carts")
 
-class Recommendation(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint("user_id", "game_id"),
-    )
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    game_id: Mapped[int] = mapped_column(ForeignKey("games.appid"))
 
-    score: Mapped[float] = mapped_column(nullable=False)
+#WISHLIST MODELS
+#------------------------------------------------------------------------------------------
+wishlist_games = Table('wishlist_games', Base.metadata,
+    mapped_column('wishlist_id', int, ForeignKey('wishlists.id'), primary_key=True),
+    mapped_column('game_id', int, ForeignKey('games.id'), primary_key=True)
+)   
 
-    user: Mapped["User"] = relationship("User", back_populates="recommendations")
-    game: Mapped["Game"] = relationship("Game", back_populates="recommendations")
-
-class OrderItem(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint("order_id", "game_id"),
-    )
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    game_id: Mapped[int] = mapped_column(ForeignKey("games.appid"))
-    quantity: Mapped[int] = mapped_column(nullable=False)
-    price_at_purchase: Mapped[float] = mapped_column(nullable=False)
-
-    order: Mapped["Order"] = relationship(back_populates="items")
-    game: Mapped["Game"] = relationship()
-
-
-class Order(TimestampedBase):
+class Wishlist(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    total_price: Mapped[float] = mapped_column(nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    user: Mapped["User"] = relationship("User", back_populates="wishlist")
 
-    user: Mapped["User"] = relationship(back_populates="orders")
-    items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order")
+    games: Mapped[List["Game"]] = relationship(
+        "Game",
+        secondary=wishlist_games,
+        back_populates="wishlists"
+    )
